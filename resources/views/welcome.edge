@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>वार्तालाप</title>
+  @entryPointStyles('app')
+  @entryPointScripts('app')
+</head>
+<body>
+
+
+<body>
+
+{{--  chat app  --}}
+
+  <section class="chat__section">
+    <div class="welcome">Welcome  <span id="welcomeName"> </span></div>
+    <div class="brand">
+      <h1>वार्तालाप</h1>
+      <span> Online users in the chat : <span id="userCount"></span>
+      </span>
+    </div>
+    <div class="message__area">
+
+    {{--  <div class="incoming message">
+    <h4>Mark</h4>
+    <p>Hey</p>
+    </div>
+
+    <div class="outgoing message">
+    <h4>John</h4>
+    <p>Hello</p>
+    </div>
+
+     <div class="outgoing message">
+    <h4>John</h4>
+    <p>How are you?</p>
+    </div>  --}}
+
+    {{--  <div class="typing message">
+     <h4>John</h4>
+     <p>typing...</p>
+    </div>  --}}
+
+    </div>
+
+    <div>
+    <textarea id="textarea" cols="30" rows="1" placeholder="Write a message"></textarea>
+    </div>
+
+  </section>
+
+    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+    <script>
+
+    const socket = io()
+
+    let name;
+    let textarea = document.querySelector('#textarea')
+    let messageArea = document.querySelector('.message__area')
+
+    // Define a variable to keep track of the typing indicator message element
+    let typingIndicatorMessage = null;
+    let typingTimeout // Variable to store the timeout reference
+    
+    //to take a name from user
+    do {
+      name = prompt('Please enter your name : ')
+      let welcomeName = document.getElementById("welcomeName")
+      welcomeName.textContent = name
+    } while (!name);
+
+
+    // Emit typing event when user starts typing
+    textarea.addEventListener('keydown', () => {
+      socket.emit('startTyping',{name});
+
+    // Clear any existing timeout
+    clearTimeout(typingTimeout);
+    });
+
+    // Emit stoppedTyping event when user stops typing and send message in the chat
+    textarea.addEventListener('keyup',(e)=>{
+      // socket.emit('startTyping',{name});
+      clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(() => {
+        socket.emit('stoppedTyping',{name})
+        removeTypingIndicator(name);
+      }, 2000); // Delay in milliseconds
+      if(e.key === 'Enter'){
+        socket.emit('stoppedTyping',{name})
+        removeTypingIndicator(name);
+        sendMessage(e.target.value)
+      }
+    })
+
+    function sendMessage(msg){
+      let message = {
+        user : name,
+        message : msg.trim()
+      }
+      appendMessage(message,'outgoing')
+      textarea.value = ""
+      scrollToBottom()
+      //send message to server
+      socket.emit('message',message)
+
+    }
+
+    function appendMessage(msg,type){
+      let mainDiv = document.createElement('div')
+      let className = type
+      mainDiv.classList.add(className,'message')
+
+      let markup = `
+      <h4>${msg.user}</h4>
+      <p>${msg.message} </p>
+      `
+      mainDiv.innerHTML = markup
+      messageArea.appendChild(mainDiv)
+    }
+
+    socket.on('message',(message)=>{
+      appendMessage(message, 'incoming' )
+      scrollToBottom()
+    })
+
+    function scrollToBottom(){
+      messageArea.scrollTop = messageArea.scrollHeight
+    }
+
+    //To show total users count in the chat
+    socket.on('broadcast',(userCount)=>{
+      const userCountSpan = document.getElementById('userCount')
+      userCountSpan.innerHTML = userCount.users
+    })
+
+    socket.on('broadcastStartTyping',(messageData)=>{
+      if (!typingIndicatorMessage) {
+        typingIndicatorMessage += 1
+        appendMessage(messageData, 'typing')
+        scrollToBottom()
+      }
+    })
+
+     socket.on('broadcastStoppedTyping',(messageData)=>{
+      removeTypingIndicator(messageData.user)
+      scrollToBottom()
+    })
+
+
+    // Function to remove typing indicator
+    function removeTypingIndicator(username) {
+      if (typingIndicatorMessage) {
+        // typingIndicatorMessage.remove();
+        const typingMessages = document.querySelectorAll('.typing.message');
+        typingMessages.forEach((message) => {
+        const h4 = message.querySelector('h4');
+        if (h4.textContent === username) {
+          message.remove();
+        }
+      });
+        typingIndicatorMessage = null;
+        scrollToBottom();
+      }
+    }
+
+
+      
+      // socket.on('newUser',(data)=>{
+      //   document.body.innerHTML = ""
+      //   document.write(data.message)
+      // })
+
+      // //custom namespace
+      // const socket = io('/custom-namespace')
+      // socket.on('customEvent',(data)=>{
+      //   console.log(data)
+      //   document.body.innerHTML = ""
+      //   document.write(data)
+      // })
+      
+    </script>
+</body>
+</html>
+
+</body>
+</html>
